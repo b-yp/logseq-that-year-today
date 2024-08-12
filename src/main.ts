@@ -6,6 +6,26 @@ import { PageEntity } from "@logseq/libs/dist/LSPlugin.user";
 
 const pluginId = PL.id;
 
+interface Data {
+  html: string
+  text: string
+  year: string
+  no_year_html: string
+  links: {
+    link: string
+    title: string
+  }[]
+}
+interface History {
+  url: string;
+  date: string
+  data: {
+    Events: Data[]
+    Births: Data[]
+    Deaths: Data[]
+  }
+}
+
 const getPastYearsSameDay = async (formatType: string, length: number = 10) => {
   const uuids = [];
   let day = new Date()
@@ -28,7 +48,6 @@ const init = async () => {
   let isShow = false
 
   const configs = await logseq.App.getUserConfigs()
-  console.log('configs', configs)
 
   logseq.App.onSidebarVisibleChanged(({ visible }) => {
     isShow = visible
@@ -51,10 +70,40 @@ const init = async () => {
 
       if (!isShow) {
         isShow = true
-        return uuids.map(i => logseq.Editor.openInRightSidebar(i))
+
+        const res = await logseq.Editor.createPage(`.${format(new Date(), 'MM-dd')} In History`, {}, { redirect: false })
+        if (res?.uuid) {
+          uuids.unshift(res.uuid)
+        }
+
+        uuids.map(i => logseq.Editor.openInRightSidebar(i))
+
+        const history: History = await fetch('https://history.muffinlabs.com/date').then(res => res.json())
+
+        if (!res?.uuid) return
+        await logseq.Editor.appendBlockInPage(res.uuid, `> ${history.url}`)
+        const events = await logseq.Editor.appendBlockInPage(res.uuid, `## Events`)
+        const deaths = await logseq.Editor.appendBlockInPage(res.uuid, `## Deaths`)
+        const births = await logseq.Editor.appendBlockInPage(res.uuid, `## Births`)
+
+        events?.uuid && await logseq.Editor.insertBatchBlock(events.uuid, history.data.Events.reverse().map(i => ({
+          content: i.html
+        })), { sibling: false })
+
+        deaths?.uuid && await logseq.Editor.insertBatchBlock(deaths.uuid, history.data.Events.reverse().map(i => ({
+          content: i.html
+        })), { sibling: false })
+
+        births?.uuid && await logseq.Editor.insertBatchBlock(births.uuid, history.data.Events.reverse().map(i => ({
+          content: i.html
+        })), { sibling: false })
+
+        return logseq.Editor.exitEditingMode()
       }
+
       if (isShow) {
         isShow = false
+        logseq.Editor.deletePage(`.${format(new Date(), 'MM-dd')} In History`)
         return logseq.App.clearRightSidebarBlocks({ close: true })
       }
     },
