@@ -81,6 +81,7 @@ const init = async () => {
         const history: History = await fetch('https://history.muffinlabs.com/date').then(res => res.json())
 
         if (!res?.uuid) return
+        await logseq.Editor.appendBlockInPage(res.uuid, `( **Note**: This page is not persistently stored and is for viewing purposes only )`)
         await logseq.Editor.appendBlockInPage(res.uuid, `> ${history.url}`)
         const events = await logseq.Editor.appendBlockInPage(res.uuid, `## Events`)
         const deaths = await logseq.Editor.appendBlockInPage(res.uuid, `## Deaths`)
@@ -98,7 +99,8 @@ const init = async () => {
           content: i.html
         })), { sibling: false })
 
-        return logseq.Editor.exitEditingMode()
+        logseq.Editor.exitEditingMode()
+        return
       }
 
       if (isShow) {
